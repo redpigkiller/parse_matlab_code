@@ -1,0 +1,143 @@
+// Grammar version: 2024.8.10 (LALR)
+// 1. Ignore WS change to ignore WS_INLINE
+// 2. Rename _WS_INLINE and _NL for WS_INLINE and NEWLINE
+
+// Ignore whitespace throughout the grammar
+%ignore _WS_INLINE
+
+// The starting rule for the grammar
+start: expression
+
+// Expression precedence rules, from lowest to highest precedence
+?expression: precedence_1
+
+// 12. Short-circuit OR (lowest precedence)
+?precedence_1: precedence_1 "||" precedence_2     -> short_circuit_or
+             | precedence_2
+
+// 11. Short-circuit AND
+?precedence_2: precedence_2 "&&" precedence_3     -> short_circuit_and
+             | precedence_3
+
+// 10. Element-wise OR
+?precedence_3: precedence_3 "|" precedence_4      -> element_wise_or
+             | precedence_4
+
+// 9. Element-wise AND
+?precedence_4: precedence_4 "&" precedence_5      -> element_wise_and
+             | precedence_5
+
+// 8. Relational operators
+?precedence_5: precedence_5 "<"  precedence_6     -> less_than
+             | precedence_5 "<=" precedence_6     -> less_than_or_equal_to
+             | precedence_5 ">"  precedence_6     -> greater_than
+             | precedence_5 ">=" precedence_6     -> greater_than_or_equal_to
+             | precedence_5 "==" precedence_6     -> equal_to
+             | precedence_5 "~=" precedence_6     -> not_equal_to
+             | precedence_6
+
+// 7. Colon operator
+?precedence_6: precedence_6 ":" precedence_7      -> colon_operator
+             | precedence_7
+
+// 6. Addition and subtraction
+?precedence_7: precedence_7 "+" precedence_8      -> addition
+             | precedence_7 "-" precedence_8      -> subtraction
+             | precedence_8
+
+// 5. Multiplication and division
+?precedence_8: precedence_8 ".*" precedence_9     -> multiplication
+             | precedence_8 "./" precedence_9     -> right_division
+             | precedence_8 ".\\" precedence_9    -> left_division
+             | precedence_8 "*" precedence_9      -> matrix_multiplication
+             | precedence_8 "/" precedence_9      -> matrix_right_division
+             | precedence_8 "\\" precedence_9     -> matrix_left_division
+             | precedence_9
+
+// 4. Unary operators
+?precedence_9: "+" precedence_9                   -> unary_plus
+             | "-" precedence_9                   -> unary_minus
+             | "~" precedence_9                   -> logical_negation
+             | precedence_10
+
+// 3. Power with unary operators (special case, right-to-left associativity)
+?precedence_10: precedence_11 ".^" unary_op       -> power
+              | precedence_11 "^" unary_op        -> matrix_power
+              | precedence_11
+
+?unary_op: "-" precedence_10                      -> unary_minus
+         | "+" precedence_10                      -> unary_plus
+         | "~" precedence_10                      -> logical_negation
+
+// 2. Transpose, power, complex conjugate transpose, matrix power
+?precedence_11: precedence_11 ".'"                -> transpose
+              | precedence_11 ".^" precedence_12  -> power
+              | precedence_11 "'"                 -> hermitian
+              | precedence_11 "^" precedence_12   -> matrix_power
+              | precedence_12
+
+// 1. Parentheses (highest precedence)
+?precedence_12: "(" expression ")"                -> parentheses
+              | matlab_rvalue
+
+// MATLAB rvalues (right-hand values)
+?matlab_rvalue: NUM                               -> number
+              | IMAG_NUM
+              | STR                               -> string_array
+              | identifier_expression
+              | "@" IDENTIFIER                    -> function_handle
+              | matlab_array
+              | matlab_cell
+              | anonymous_function
+
+// Identifier expressions (variables, function calls, indexing)
+?identifier_expression: IDENTIFIER      -> simple_identifier
+                      | function_call
+                      | cell_element
+                      | struct_element
+
+function_call: identifier_expression "(" [indexing] ")"
+cell_element: identifier_expression "{" [indexing] "}"
+struct_element: identifier_expression ("." field_name)+
+
+// Structure field name (can be an identifier or an expression in parentheses)
+field_name: IDENTIFIER
+          | "(" expression ")"
+
+// Anonymous function definition
+anonymous_function: "@" "(" [input_params] ")" expression
+input_params: (IDENTIFIER|TILDE) ("," (IDENTIFIER|TILDE))*
+TILDE: "~"
+
+// Array and cell indexing
+indexing: matlab_index ("," matlab_index)*
+?matlab_index: expression
+             | expression ":" expression
+             | expression ":" expression ":" expression
+             | COLON
+
+// Array and cell definitions
+matlab_array: "[" "]"
+             |"[" ("," | ";" | _NL)* array_content ("," | ";" | _NL)* "]"
+matlab_cell: "{" "}"
+           | "{" ("," | ";" | _NL)* cell_content ("," | ";" | _NL)* "}"
+
+array_content: row ((";" | _NL)+ row)*
+cell_content: cell_row ((";" | _NL)+ cell_row)*
+
+row: expression (","* expression)*
+cell_row: expression (","* expression)*
+
+// Terminal definitions
+NUM: NUMBER | BIN_NUM | HEX_NUM
+BIN_NUM: /0[bB][01]+(u8|u16|u32|u64|s8|s16|s32|s64)?/
+HEX_NUM: /0[xX][0-9a-fA-F]+(u8|u16|u32|u64|s8|s16|s32|s64)?/
+IMAG_NUM: NUM ("i" | "j")
+STR: /"(?:[^"]|"")*"/
+IDENTIFIER: /[a-zA-Z_]\w*/
+COLON: ":"
+
+// Import common terminals from Lark
+%import common.NUMBER
+%import common.NEWLINE      -> _NL
+%import common.WS_INLINE    -> _WS_INLINE

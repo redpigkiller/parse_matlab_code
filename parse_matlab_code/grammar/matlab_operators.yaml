@@ -1,0 +1,5 @@
+{'&': and, '&&': land, "'": transpose, '*': mtimes, +: addition, '-': subtraction
+, .': ctranspose, .*: times, ./: rdivide, .\: ldivide,
+.^: power, /: mrdivide, <: lt, <=: le, ==: eq,
+'>': gt, '>=': ge, \: mldivide, ^: mpower, '|': or, '||': lor, '~': not,
+~=: ne}
