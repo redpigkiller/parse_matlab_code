@@ -1,9 +1,9 @@
 from lark import Tree, Token as LarkToken
 
-from parse_matlab_code.core.tokenizer import Token, TokenType
-from parse_matlab_code.core.tree import *
+from .tokenizer import Token, TokenType
+from .tree import *
 
-from parse_matlab_code.core.parser_error import TreeConversionError
+from .parser_error import TreeConversionError
 
 def convert_lark_tree(tree) -> Node:
     """

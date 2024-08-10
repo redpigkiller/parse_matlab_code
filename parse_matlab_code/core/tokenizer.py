@@ -1,10 +1,10 @@
 from pathlib import Path
 from ruamel.yaml import YAML
-from typing import Optional
+from typing import *
 from enum import Enum, auto
 import re
 
-from parse_matlab_code.core.parser_error import *
+from .parser_error import *
 
 class TokenType(Enum):
     NUMBER = auto()

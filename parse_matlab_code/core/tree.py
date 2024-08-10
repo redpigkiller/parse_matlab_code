@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
-from typing import Optional, Union
+from typing import *
 
-from parse_matlab_code.core.tokenizer import Token
+from .tokenizer import Token
 
 @dataclass
 class Node:

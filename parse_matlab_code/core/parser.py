@@ -1,13 +1,13 @@
 from pathlib import Path
-from typing import Optional, Literal
+from typing import *
 from rich import print as rprint
 from lark import Lark
 
-from parse_matlab_code.core.tokenizer import Token, TokenType, Tokenizer
-from parse_matlab_code.core.tree import *
-from parse_matlab_code.core.convert_lark_tree import convert_lark_tree
+from .tokenizer import Token, TokenType, Tokenizer
+from .tree import *
+from .convert_lark_tree import convert_lark_tree
 
-from parse_matlab_code.core.parser_error import *
+from .parser_error import *
 
 
 class ASTBuilder:
