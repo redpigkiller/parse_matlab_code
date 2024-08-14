@@ -159,7 +159,8 @@ class ASTBuilder:
         1. Function call: cd test/this_is_test_folder
         2. Function call cd(2), expression such as a + 3, or assignment a = 3 + 8
         """
-        first_token = self._previous()
+        # Record current position
+        current_backup = self._current
 
         # Check case 1
         #   Function call: cd test/this_is_test_folder
@@ -171,34 +172,57 @@ class ASTBuilder:
         self._flag_skip_space = False
         if self._match(TokenType.SPACE):
             # It is case 3 and 4
-            if self._match(TokenType.OPERATOR):
-                operator = self._previous()
+            is_function_call = False
+
+            if self._match(TokenType.IDENTIFIER) or \
+                self._match(TokenType.CHAR_ARRAY) or \
+                self._match(TokenType.STRING) or \
+                self._match(TokenType.PERIOD) or \
+                self._match(TokenType.BRACKET_OPEN) or \
+                self._match(TokenType.BRACKET_CLOSE) or \
+                self._match(TokenType.BRACES_OPEN) or \
+                self._match(TokenType.BRACES_CLOSE) or \
+                self._match(TokenType.AT) or \
+                self._match(TokenType.EXCLAMATION) or \
+                self._match(TokenType.QUESTION):
+                # It is function call
+                is_function_call = True
+
+            elif self._match(TokenType.OPERATOR):
                 # Find operator, need to determine if it is an expression
-                if not self._match(TokenType.SPACE):
+                if not self._check(TokenType.SPACE):
                     # No space found, it is case 3
-                    func_name = Identifier(first_token)
+                    is_function_call = True
 
-                    # Obtain input arguments
-                    input_params: list[Node] = []
-                    token_list: list[Token] = [operator]
-                    
-                    self._is_still_in_expr(reset=True)
-                    while self._is_still_in_expr():
-                        if self._match(TokenType.SPACE):
-                            input_params.append(token_list)
-                            token_list = []
-                        else:
-                            token_list.append(self._advance())
+            if is_function_call:
+                self._current = current_backup - 1
 
-                    if token_list:
-                        input_params.append(token_list)
-                    
-                    return FunctionCall(func_name, input_params)
-        self._flag_skip_space = True
+                func_name = Identifier(self._consume(TokenType.IDENTIFIER))
+                self._consume(TokenType.SPACE)
+
+                # Obtain input arguments
+                input_params: list[Node] = []
+                token_list: list[Token] = []
+                
+                self._is_still_in_expr(reset=True)
+                while self._is_still_in_expr():
+                    if self._match(TokenType.SPACE):
+                        input_params.append(Token(TokenType.STRING, ''.join([t.val for t in token_list]), token_list[0].ln, token_list[0].col))
+                        token_list = []
+                    else:
+                        token_list.append(self._advance())
+                
+                if token_list:
+                    input_params.append(Token(TokenType.STRING, ''.join([t.val for t in token_list]), token_list[0].ln, token_list[0].col))
+                
+                # Restore
+                self._flag_skip_space = True
+                return FunctionCall(func_name, input_params)
 
         # Check case 2
         #   Function call cd(2), expression such as a + 3, or assignment a = 3 + 8
-        left_expr: list[Token] = [first_token]
+        self._current = current_backup - 1
+        left_expr: list[Token] = []
         is_find_assign = False
 
         self._is_still_in_expr(reset=True)
@@ -208,6 +232,9 @@ class ASTBuilder:
                 break
             left_expr.append(self._advance())
 
+        # Restore
+        self._flag_skip_space = True
+
         if is_find_assign:
             lvalue = self._parse_expression(left_expr)
             rvalue = self._parse_expression()
@@ -215,7 +242,7 @@ class ASTBuilder:
         else:
             # For expression, there is no "="
             return self._parse_expression(left_expr)
-        
+    
     def _parse_expression_or_function_return(self) -> Node:
         # Firstly, we assume it is a function return, it only accepts ","; does not accept ";" and "\n"
         is_expr = False
@@ -378,6 +405,8 @@ class ASTBuilder:
         loop_array = []
         parenthesis_cnt = 0
 
+        self._flag_skip_space = False
+
         self._is_still_in_expr(reset=True)
         while self._is_still_in_expr():
             if is_ahead_assignment:
@@ -394,6 +423,8 @@ class ASTBuilder:
                     self._advance()
             else:
                 loop_array.append(self._advance())
+
+        self._flag_skip_space = True
         
         loop_array = loop_array[:-parenthesis_cnt] if parenthesis_cnt > 0 else loop_array   # Discard last parenthesis_cnt parenthesis
         loop_array = self._parse_expression(loop_array)
@@ -509,27 +540,71 @@ class ASTBuilder:
             # Restore
             self._flag_skip_space = True
 
+        # Note: by testing, the MATLAB grammar might have the following behavior when dealing with cell array:
+        #   Assume c is a cell array 
+        #   1. All the statement without space, such as" c{1}" is valid
+        #   2. "c {1}" is invalid, and "c {1} + 3" is also invalid
+        #   3. However, "2 + c {2}" is valid.
+        #   4. Moreover, "(c {1})", "[c {1}]", "{c {1}}" are valid.
+        #   5. For the contruction of array or cell array, "[c {1}]" is different from "[c{1}]"
+        #
+        #   Hence, for parsing, if we add "," between identifier and ("[" or "{") if this pattern
+        #   is in "[]" or "{}", for example, makes "[c {1}]" to "[c,{1}]" 
+
+        tmp_token_list = token_list
+        token_list = []
+        open_count = 0
+
+        idx = 0
+        while idx < len(tmp_token_list) - 2:
+            if tmp_token_list[idx].typ in (TokenType.BRACKET_OPEN, TokenType.BRACES_OPEN):
+                open_count += 1
+                token_list.append(tmp_token_list[idx])
+
+            elif tmp_token_list[idx].typ in (TokenType.BRACKET_CLOSE, TokenType.BRACES_CLOSE):
+                open_count -= 1
+                token_list.append(tmp_token_list[idx])
+            
+            elif open_count > 0 and \
+                tmp_token_list[idx].typ == TokenType.IDENTIFIER and \
+                tmp_token_list[idx+1].typ == TokenType.SPACE and \
+                tmp_token_list[idx+2].typ == TokenType.BRACES_OPEN:
+                # Match pattern: (identifier, space, "{")
+                token_list.append(tmp_token_list[idx])
+
+                # Change space token to comma token
+                fake_comma_token = tmp_token_list[idx+1]
+                fake_comma_token.typ = TokenType.COMMA
+                fake_comma_token.val = ","
+                idx += 1    # Step over space token
+                token_list.append(fake_comma_token)
+            else:
+                token_list.append(tmp_token_list[idx])
+            idx += 1
+        
+        # Append last 2 tokens
+        while idx < len(tmp_token_list):
+            token_list.append(tmp_token_list[idx])
+            idx += 1
+        
         # Convert list of tokens back to string
         token_str = self._token_list_to_string(token_list)
 
+        # Use lark parser to parse matlab expression
         try:
-            # Parse the expression usign lalr parser (faster)
+            # Parse the expression using lalr parser (faster)
             parse_tree = self._lark_parser.parse(token_str)
         except Exception as e:
-            pass
-            # raise LarkParserError(token_str, str(e), token_list[0].ln, token_list[0].col)
-        
-        try:
-            # Parse the expression using earley parser (slower)
-            parse_tree = self._lark_parser_earley.parse(token_str)
-        except Exception as e:
-            raise LarkParserError(token_str, str(e), token_list[0].ln, token_list[0].col)
+            # If failed, parse the expression using earley parser (slower)
+            try:
+                parse_tree = self._lark_parser_earley.parse(token_str)
+            except Exception as e:
+                raise LarkParserError(token_str, str(e), token_list[0].ln, token_list[0].col)
 
         try:
             # Convert lark tree to custom tree
             parse_tree = convert_lark_tree(parse_tree)
         except Exception as e:
-            print(parse_tree.pretty())
             raise TreeConversionError(str(e), self._peek().ln, self._peek().col)
 
         return parse_tree
