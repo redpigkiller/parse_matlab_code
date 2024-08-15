@@ -130,7 +130,9 @@ class ASTBuilder:
         elif keyword == "for":
             return self._parse_for_statement()
         elif keyword == "parfor":
-            raise NotImplementedFeatureError(keyword, self._previous().ln, self._previous().col)
+            return self._parse_parfor_statement()
+        elif keyword in "spmd":
+            return self._parse_spmd_statement()
         elif keyword == "while":
             return self._parse_while_statement()
         elif keyword == "switch":
@@ -148,8 +150,6 @@ class ASTBuilder:
         elif keyword == "persistent":
             return self._parser_persistent_statement()
         elif keyword == "classdef":
-            raise NotImplementedFeatureError(keyword, self._previous().ln, self._previous().col)
-        elif keyword in "spmd":
             raise NotImplementedFeatureError(keyword, self._previous().ln, self._previous().col)
         else:
             self._error(f"Unexpected keyword: {keyword}")
@@ -429,24 +429,76 @@ class ASTBuilder:
         loop_array = loop_array[:-parenthesis_cnt] if parenthesis_cnt > 0 else loop_array   # Discard last parenthesis_cnt parenthesis
         loop_array = self._parse_expression(loop_array)
 
-        # Function body
-        body: list[Node] = []
-        while not self._check(TokenType.KEYWORD, "end"):
-            body.append(self._parse_statement())
-        self._consume(TokenType.KEYWORD, "end")
+        body = self._parse_loop_body()
 
         return ForLoop(loop_index, loop_array, body)
-    
+
+    def _parse_parfor_statement(self) -> Node:
+        # Match extra open parenthesis: for the case:
+        # ```
+        #   for (( (ii) = 2 : 20))
+        # ```
+        is_ahead_assignment = True
+        is_found_comma = False
+        loop_index = None
+        loop_array = []
+        parfor_opt = []
+        parenthesis_cnt = 0
+
+        self._flag_skip_space = False
+
+        self._is_still_in_expr(reset=True)
+        while self._is_still_in_expr():
+            if is_ahead_assignment:
+                if self._match(TokenType.IDENTIFIER):
+                    loop_index = Identifier(self._previous())
+                elif self._match(TokenType.ASSIGN):
+                    assert loop_index, MatlabSyntaxError("For-loop index not found", self._peek().ln, self._peek().col)
+                    is_ahead_assignment = False
+                elif self._match(TokenType.PARENTHESIS_OPEN):
+                    parenthesis_cnt += 1
+                elif self._match(TokenType.PARENTHESIS_CLOSE):
+                    parenthesis_cnt -= 1
+                else:
+                    self._advance()
+            elif is_found_comma:
+                parfor_opt.append(self._advance())
+            else:
+                if self._match(TokenType.COMMA):
+                    is_found_comma = True
+                    assert parenthesis_cnt > 0, MatlabSyntaxError("Expect at least one parenthesis", self._peek().ln, self._peek().col)
+                else:
+                    loop_array.append(self._advance())
+
+        self._flag_skip_space = True
+
+        loop_array = self._parse_expression(loop_array)
+        parfor_opt = parfor_opt[:-parenthesis_cnt] if parenthesis_cnt > 0 else parfor_opt   # Discard last parenthesis_cnt parenthesis
+        parfor_opt = self._parse_expression(parfor_opt)
+
+        body = self._parse_loop_body()
+
+        return ParforLoop(loop_index, loop_array, parfor_opt, body)
+
+    def _parse_spmd_statement(self) -> Node:
+        body = self._parse_loop_body()
+
+        return SPMDStatement(body)
+
     def _parse_while_statement(self) -> Node:
         condition = self._parse_expression()
+        body = self._parse_loop_body()
 
+        return WhileLoop(condition, body)
+
+    def _parse_loop_body(self) -> list[Node]:
         # Function body
         body: list[Node] = []
         while not self._check(TokenType.KEYWORD, "end"):
             body.append(self._parse_statement())
         self._consume(TokenType.KEYWORD, "end")
 
-        return WhileLoop(condition, body)
+        return body
     
     def _parse_switch_statement(self) -> Node:
         def skip_redundancy() -> None:
@@ -526,9 +578,9 @@ class ASTBuilder:
             persistent_var.append(Identifier(self._consume(TokenType.IDENTIFIER)))
         return PersistentStatement(persistent_var)
 
-    def _parse_expression(self, token_list: list[Token] = []) -> Node:
+    def _parse_expression(self, token_list: Optional[list[Token]] = None) -> Optional[Node]:
         # Collecting expression tokens until newline
-        if len(token_list) == 0:
+        if token_list is None:
             # Don't ignore whitespace
             self._flag_skip_space = False
 
@@ -539,6 +591,9 @@ class ASTBuilder:
             
             # Restore
             self._flag_skip_space = True
+
+        elif len(token_list) == 0:
+            return None
 
         # Note: by testing, the MATLAB grammar might have the following behavior when dealing with cell array:
         #   Assume c is a cell array 
@@ -589,7 +644,7 @@ class ASTBuilder:
         
         # Convert list of tokens back to string
         token_str = self._token_list_to_string(token_list)
-
+        
         # Use lark parser to parse matlab expression
         try:
             # Parse the expression using lalr parser (faster)

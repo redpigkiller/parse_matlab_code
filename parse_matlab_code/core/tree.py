@@ -92,6 +92,17 @@ class ForLoop(Node):
     body: list[Node]
 
 @dataclass
+class ParforLoop(Node):
+    identifier: Node
+    expression: Node
+    option: Node
+    body: list[Node]
+
+@dataclass
+class SPMDStatement(Node):
+    body: list[Node]
+
+@dataclass
 class WhileLoop(Node):
     condition: Node
     body: list[Node]
