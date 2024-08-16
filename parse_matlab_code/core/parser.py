@@ -1,3 +1,4 @@
+import pkg_resources
 from pathlib import Path
 from typing import *
 from rich import print as rprint
@@ -15,8 +16,12 @@ class ASTBuilder:
 
     def __init__(self) -> None:
         # Load grammar
-        self._lark_parser = Lark.open(Path("./parse_matlab_code/grammar/matlab_ebnf.lark").absolute(), parser="lalr")
-        self._lark_parser_earley = Lark.open(Path("./parse_matlab_code/grammar/matlab_ebnf.lark").absolute(), parser="earley")
+        file_path = pkg_resources.resource_filename('parse_matlab_code', 'grammar/matlab_ebnf.lark')
+        with open(file_path, 'r') as f:
+            lark_grammar = f.read()
+
+        self._lark_parser = Lark(lark_grammar, parser="lalr")
+        self._lark_parser_earley = Lark(lark_grammar, parser="earley")
 
     def parse(self, tokens: list[Token]) -> tuple[Node, list[Token], list[Token]]:
         self._tokens = tokens

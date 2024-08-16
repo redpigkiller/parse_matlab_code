@@ -1,4 +1,4 @@
-from pathlib import Path
+import pkg_resources
 from ruamel.yaml import YAML
 from typing import *
 from enum import Enum, auto
@@ -50,10 +50,12 @@ class Tokenizer:
     def __init__(self) -> None:
         yaml = YAML(typ='safe', pure=True)
 
-        with open(Path('./parse_matlab_code/grammar/matlab_keywords.yaml').absolute(), 'r') as f:
+        file_path = pkg_resources.resource_filename('parse_matlab_code', 'grammar/matlab_keywords.yaml')
+        with open(file_path, 'r') as f:
             self.keywords = yaml.load(f)
 
-        with open(Path('./parse_matlab_code/grammar/matlab_operators.yaml').absolute(), 'r') as f:
+        file_path = pkg_resources.resource_filename('parse_matlab_code', 'grammar/matlab_operators.yaml')
+        with open(file_path, 'r') as f:
             self.operators = yaml.load(f)
 
     def tokenize(self, code: str) -> list[Token]:
