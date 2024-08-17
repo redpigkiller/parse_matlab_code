@@ -45,7 +45,7 @@ class COLON(Node):
 
 @dataclass
 class Comment(Node):
-    text: Token
+    value: Token
 
 @dataclass
 class Ellipsis(Node):
@@ -57,11 +57,11 @@ class Ellipsis(Node):
     ```
     then, text = "... add two".
     """
-    text: Token
+    value: Token
 
 @dataclass
 class EndOfLine(Node):
-    text: Token
+    value: Token
 
 ##################################################
 # Flow
@@ -157,7 +157,7 @@ class Assignment(Node):
 ##################################################
 @dataclass
 class FunctionHandle(Node):
-    name: Node
+    name: Token
 
 @dataclass
 class AnonymousFunction(Node):
