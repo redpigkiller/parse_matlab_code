@@ -15,7 +15,7 @@ class ASTBuilder:
     _ignored_token_type = (TokenType.SPACE, )
 
     def __init__(self) -> None:
-        # Load grammarzz
+        # Load grammar
         file_path = pkg_resources.resource_filename('parse_matlab_code', 'grammar/matlab_ebnf.lark')
         with open(file_path, 'r') as f:
             lark_grammar = f.read()
