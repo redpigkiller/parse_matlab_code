@@ -71,7 +71,7 @@ def convert_lark_tree(tree) -> Node:
             start = convert_lark_tree(tree.children[0])
             step  = []
 
-        return ColonArray(start, step, convert_lark_tree(tree.children[1]))
+        return ColonArray(start, convert_lark_tree(tree.children[1]), step)
 
     elif tree.data in ('unary_plus', 'unary_minus', 'logical_negation',
                        'transpose', 'hermitian'):

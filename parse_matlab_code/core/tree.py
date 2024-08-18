@@ -74,6 +74,11 @@ class FunctionDefinition(Node):
     body: list[Node]
 
 @dataclass
+class AnonymousFunction(Node):
+    parameters: list[Node]
+    body: list[Node]
+
+@dataclass
 class ElseIfClause(Node):
     condition: Node
     body: list[Node]
@@ -157,26 +162,11 @@ class Assignment(Node):
 ##################################################
 @dataclass
 class FunctionHandle(Node):
-    name: Token
-
-@dataclass
-class AnonymousFunction(Node):
-    parameters: list[Node]
-    body: list[Node]
+    value: Token
 
 @dataclass
 class FunctionCall(Node):
     # Note that, array and cell indexing is also regarded as function call
-    identifier: Node
-    arguments: list[Node]
-    
-@dataclass
-class AmbiguityFunctionCall(Node):
-    # For the function call
-    # 1. cd test == cd("test")
-    # 2. cd ./test
-    # 3. cd ..
-    # The case 2 might be cd ./ test or cd("./test")
     identifier: Node
     arguments: list[Node]
 
@@ -191,8 +181,8 @@ class IndexExpression(Node):
 
 @dataclass
 class StructAccess(Node):
-    base: Node
-    field_node: list[Node]
+    identifier: Node
+    arguments: list[Node]
 
 @dataclass
 class MatrixExpression(Node):
@@ -202,15 +192,15 @@ class MatrixExpression(Node):
 class CellArrayExpression(Node):
     elements: list[list[Node]]
 
+@dataclass
+class ColonArray(Node):
+    start: Node
+    stop: Node
+    step: Optional[Node] = None
+
 ##################################################
 # For operations
 ##################################################
-@dataclass
-class ColonArray(Node):
-    start: Optional[Node] = None
-    step: Optional[Node] = None
-    stop: Optional[Node] = None
-
 @dataclass
 class BinaryOperation(Node):
     left: Node
