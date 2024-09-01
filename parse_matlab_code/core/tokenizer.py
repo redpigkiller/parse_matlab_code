@@ -94,9 +94,14 @@ class Tokenizer:
                     
                     self._column_num += length or 1  # Move at least one character forward
                     
+                # Add newline if not in multi-line comment block
                 if not self._flag_in_multi_line_comment:
                     tokens.append(Token(TokenType.NEWLINE, '\n', self._line_num, len(line) + 1))
                 
+                # If there is ellipsis at the end, then do not reset transpose quotation flag
+                if not tokens[-1] == TokenType.ELLIPSIS:
+                    self._flag_is_transpose_quotation = False
+
                 self._line_num += 1
                 
         except Exception as e:
