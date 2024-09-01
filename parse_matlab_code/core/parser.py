@@ -241,7 +241,7 @@ class ASTBuilder:
         self._flag_skip_space = True
 
         if is_find_assign:
-            lvalue = self._parse_expression(left_expr)
+            lvalue = [self._parse_expression(left_expr)]
             rvalue = self._parse_expression()
             return Assignment(lvalue, rvalue)
         else:
@@ -316,7 +316,7 @@ class ASTBuilder:
                 self._match(TokenType.COMMA)
 
             self._consume(TokenType.ASSIGN, error_message="Expect a '='")
-            func_name = self._consume(TokenType.IDENTIFIER, error_message="Expect a function name")
+            func_name = Identifier(self._consume(TokenType.IDENTIFIER, error_message="Expect a function name"))
         
         # Check for
         # the 2nd case: x = func_name, and

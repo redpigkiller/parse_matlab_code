@@ -117,15 +117,15 @@ def convert_lark_tree(tree) -> Node:
     elif tree.data == 'function_call':
         # Function calls
         return FunctionCall(
-            convert_lark_tree(tree.children[0]),                    # Function identifier
-            [convert_lark_tree(arg) for arg in tree.children[1:]]   # Arguments
+            convert_lark_tree(tree.children[0]),    # Function identifier
+            convert_lark_tree(tree.children[1])     # Arguments
         )
 
     elif tree.data == 'cell_element':
         # Cell array indexing
         return CellArrayAccess(
-            convert_lark_tree(tree.children[0]),                    # Cell array identifier
-            [convert_lark_tree(arg) for arg in tree.children[1:]]   # Indices
+            convert_lark_tree(tree.children[0]),    # Cell array identifier
+            convert_lark_tree(tree.children[1])     # Indices
         )
     
     elif tree.data == 'indexing':

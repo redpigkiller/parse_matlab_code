@@ -168,12 +168,17 @@ class FunctionHandle(Node):
 class FunctionCall(Node):
     # Note that, array and cell indexing is also regarded as function call
     identifier: Node
-    arguments: list[Node]
+    arguments: Node
+
+@dataclass
+class ArrayAccess(Node):
+    identifier: Node
+    arguments: Node
 
 @dataclass
 class CellArrayAccess(Node):
     identifier: Node
-    arguments: list[Node]
+    arguments: Node
 
 @dataclass
 class IndexExpression(Node):
