@@ -663,8 +663,9 @@ class ASTBuilder:
 
         try:
             # Convert lark tree to custom tree
-            parse_tree = convert_lark_tree(parse_tree)
+            parse_tree = convert_lark_tree(parse_tree, token_list[0].ln, token_list[0].col)
         except Exception as e:
+            print(token_str)
             raise TreeConversionError(str(e), self._peek().ln, self._peek().col)
 
         return parse_tree
