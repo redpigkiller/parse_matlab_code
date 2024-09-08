@@ -65,8 +65,8 @@ start: expression
               | precedence_11 "^" unary_op        -> matrix_power
               | precedence_11
 
-?unary_op: "-" precedence_10                      -> unary_minus
-         | "+" precedence_10                      -> unary_plus
+?unary_op: "+" precedence_10                      -> unary_plus
+         | "-" precedence_10                      -> unary_minus
          | "~" precedence_10                      -> logical_negation
 
 // 2. Transpose, power, complex conjugate transpose, matrix power

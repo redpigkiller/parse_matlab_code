@@ -58,6 +58,9 @@ class Tokenizer:
         with open(file_path, 'r') as f:
             self.operators = yaml.load(f)
 
+        self._match_identifier  = re.compile(r'[a-zA-Z_]\w*')
+        self._match_number      = re.compile(r'(?:\d*\.\d+|\d+\.?)[eE][+-]?\d+|0[xX][0-9a-fA-F]+|\d*\.\d+|\d+\.?')
+
     def tokenize(self, code: str) -> list[Token]:
         # For single quotation ': might be string or hermitian
         self._flag_is_transpose_quotation = False
@@ -154,7 +157,7 @@ class Tokenizer:
             return string_token
 
         # Check for identifiers and keywords
-        match = re.match(r'[a-zA-Z_]\w*', string)
+        match = self._match_identifier.match(string)
         if match:
             value = match.group()
             typ = TokenType.KEYWORD if value in self.keywords else TokenType.IDENTIFIER
@@ -166,7 +169,7 @@ class Tokenizer:
                 return Token(TokenType.OPERATOR, op, self._line_num, self._column_num), len(op)
 
         # Check for numbers (including integers, floating point, scientific notation, and hexadecimal)
-        match = re.match(r'(?:\d*\.\d+|\d+\.?)[eE][+-]?\d+|0[xX][0-9a-fA-F]+|\d*\.\d+|\d+\.?', string)
+        match = self._match_number.match(string)
         if match:
             len_of_match = match.end()
 
